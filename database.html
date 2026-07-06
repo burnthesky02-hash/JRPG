@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JRPG Entity Database</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+  <main class="database-shell">
+    <header class="hero">
+      <p class="eyebrow">Entity Backend</p>
+      <h1>Jobs, Skills, and Characters</h1>
+      <p class="subtitle">Create and edit game entities with icons and portraits. Changes persist and apply to gameplay.</p>
+    </header>
+
+    <section class="panel">
+      <p id="db-page-status" class="summary-line">Database loading...</p>
+      <div class="database-grid">
+        <article class="db-panel">
+          <h3>Skills</h3>
+          <label>Existing Skill
+            <select id="db-skill-select"></select>
+          </label>
+          <label>Skill Id
+            <input id="db-skill-id" type="text" placeholder="example: guard_break" />
+          </label>
+          <label>Name
+            <input id="db-skill-name" type="text" />
+          </label>
+          <div class="db-grid-2">
+            <label>Power<input id="db-skill-power" type="number" step="0.01" /></label>
+            <label>Cost<input id="db-skill-cost" type="number" step="1" /></label>
+          </div>
+          <label>Icon URL
+            <input id="db-skill-icon" type="text" placeholder="images/skills/guard_break.png" />
+          </label>
+          <div class="mini-actions">
+            <button id="db-skill-save" type="button">Save Skill</button>
+            <button id="db-skill-delete" type="button" class="ghost">Delete Skill</button>
+          </div>
+        </article>
+
+        <article class="db-panel">
+          <h3>Jobs</h3>
+          <label>Existing Job
+            <select id="db-job-select"></select>
+          </label>
+          <label>Job Id
+            <input id="db-job-id" type="text" placeholder="example: sentinel" />
+          </label>
+          <label>Label
+            <input id="db-job-label" type="text" />
+          </label>
+          <label>Linked Skill
+            <select id="db-job-skill-id"></select>
+          </label>
+          <div class="db-grid-2">
+            <label>HP Mod<input id="db-job-max-hp-mod" type="number" step="0.01" /></label>
+            <label>ATK Mod<input id="db-job-attack-mod" type="number" step="0.01" /></label>
+            <label>DEF Mod<input id="db-job-defense-mod" type="number" step="0.01" /></label>
+            <label>SPD Mod<input id="db-job-speed-mod" type="number" step="0.01" /></label>
+          </div>
+          <label>Icon URL
+            <input id="db-job-icon" type="text" placeholder="images/jobs/sentinel.png" />
+          </label>
+          <div class="mini-actions">
+            <button id="db-job-save" type="button">Save Job</button>
+            <button id="db-job-delete" type="button" class="ghost">Delete Job</button>
+          </div>
+        </article>
+
+        <article class="db-panel">
+          <h3>Characters</h3>
+          <label>Existing Character
+            <select id="db-char-select"></select>
+          </label>
+          <label>Character Id
+            <input id="db-char-id" type="text" placeholder="example: recruit_nia" />
+          </label>
+          <label>Name
+            <input id="db-char-name" type="text" />
+          </label>
+          <label>Lore
+            <input id="db-char-lore" type="text" />
+          </label>
+          <label>Job
+            <select id="db-char-job-id"></select>
+          </label>
+          <label>Portrait URL
+            <input id="db-char-portrait" type="text" placeholder="images/chars/nia.png" />
+          </label>
+          <div class="db-grid-2">
+            <label>Base HP<input id="db-char-hp" type="number" step="1" /></label>
+            <label>Base ATK<input id="db-char-attack" type="number" step="1" /></label>
+            <label>Base DEF<input id="db-char-defense" type="number" step="1" /></label>
+            <label>Base SPD<input id="db-char-speed" type="number" step="1" /></label>
+          </div>
+          <div class="db-grid-2">
+            <label>Level<input id="db-char-level" type="number" min="1" step="1" /></label>
+            <label>Experience<input id="db-char-experience" type="number" min="0" step="1" /></label>
+          </div>
+          <label class="db-checkbox"><input id="db-char-main" type="checkbox" /> Set As Main Character</label>
+          <label class="db-checkbox"><input id="db-char-recruited" type="checkbox" /> Recruited</label>
+          <label class="db-checkbox"><input id="db-char-in-party" type="checkbox" /> In Party</label>
+          <div class="mini-actions">
+            <button id="db-char-save" type="button">Save Character</button>
+            <button id="db-char-delete" type="button" class="ghost">Delete Character</button>
+          </div>
+        </article>
+      </div>
+
+      <button id="db-back-to-game" type="button" class="database-footer-link">Back To Game</button>
+    </section>
+  </main>
+
+  <script src="src/core/namespace.js"></script>
+  <script src="src/systems/game/ColiseumData.js"></script>
+  <script src="src/systems/game/EntityDatabase.js"></script>
+  <script src="src/pages/DatabasePage.js"></script>
+</body>
+</html>

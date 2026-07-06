@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JRPG Systems Lab - Character Creator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+  <main class="app-shell">
+    <aside id="sidebar-panel" class="sidebar-panel panel" aria-label="Campaign HUD">
+      <h2>Campaign HUD</h2>
+      <p class="summary-line" id="sidebar-nation">Nation: Unaligned</p>
+      <p class="summary-line">Rank: <span id="sidebar-rank">1</span> | Credits: <span id="sidebar-credits">0</span></p>
+
+      <section class="hud-section" data-hud-section="party">
+        <h3><button type="button" class="hud-toggle" data-hud-toggle="party" aria-expanded="true">Party</button></h3>
+        <div class="hud-body" data-hud-body="party">
+          <ul id="sidebar-party-list" class="hud-list"></ul>
+        </div>
+      </section>
+
+      <section class="hud-section" data-hud-section="reserve">
+        <h3><button type="button" class="hud-toggle" data-hud-toggle="reserve" aria-expanded="true">Reserve</button></h3>
+        <div class="hud-body" data-hud-body="reserve">
+          <ul id="sidebar-reserve-list" class="hud-list"></ul>
+        </div>
+      </section>
+
+      <section class="hud-section" data-hud-section="quests">
+        <h3><button type="button" class="hud-toggle" data-hud-toggle="quests" aria-expanded="true">Quests</button></h3>
+        <div class="hud-body" data-hud-body="quests">
+          <ul id="sidebar-quest-list" class="hud-list"></ul>
+        </div>
+      </section>
+
+      <section class="hud-section">
+        <button id="open-database-page" type="button" class="hud-db-link">Open Entity Database</button>
+      </section>
+    </aside>
+
+    <div class="stage-shell">
+      <header class="hero">
+        <p class="eyebrow">Mercenary Campaign Prototype</p>
+        <h1>Warfront District</h1>
+        <p class="subtitle">Explore the map, trigger encounters, then transition into ATB battles.</p>
+      </header>
+
+      <section id="game-panel" class="panel game-panel is-hidden" aria-label="Active Time Battle Screen">
+        <article class="game-block battle-block">
+          <h3>Active Time Battle</h3>
+          <p id="game-battle-status" class="summary-line">No active match.</p>
+          <div id="game-command-row" class="command-row"><p class="hint">No active command.</p></div>
+
+          <div class="battle-grid">
+            <div>
+              <h4>Allies</h4>
+              <ul id="game-ally-board" class="game-list"></ul>
+            </div>
+            <div>
+              <h4>Enemies</h4>
+              <ul id="game-enemy-board" class="game-list"></ul>
+            </div>
+          </div>
+
+          <h4>Battle Log</h4>
+          <ul id="game-log" class="game-log"></ul>
+
+          <section id="battle-result-modal" class="battle-result-modal is-hidden" aria-label="Battle Result">
+            <h4>Battle Results</h4>
+            <p id="battle-result-summary" class="summary-line">Result pending.</p>
+            <ul id="battle-result-details" class="game-list"></ul>
+            <button id="battle-result-continue" type="button">Continue</button>
+          </section>
+        </article>
+      </section>
+
+      <section id="map-panel" class="panel map-panel" aria-label="Overworld Map Prototype">
+        <h2>Overworld District Map</h2>
+        <p class="hint">Traditional JRPG movement and interaction prototype. Use WASD or Arrow keys, then press E near NPCs or objects.</p>
+
+        <div class="map-layout">
+          <div class="map-canvas-wrap">
+            <canvas id="map-canvas" width="480" height="320" aria-label="World Map Canvas"></canvas>
+            <p class="summary-line">Scene: <span id="map-scene">Mercenary District</span> | Phase: <span id="map-phase">day</span></p>
+            <p id="map-location" class="summary-line">Position 0, 0</p>
+            <p id="map-prompt" class="hint">Move with WASD/Arrow keys. Press E or Interact near NPCs and objects.</p>
+            <button id="map-interact" type="button">Interact</button>
+
+            <article id="map-signup-panel" class="map-signup-panel is-hidden" aria-label="Battle Registration">
+              <h3>Battle Registrar</h3>
+              <p id="map-signup-status" class="hint">Select an unlocked rank to register for a fight.</p>
+              <div id="map-signup-ranks" class="map-signup-ranks"></div>
+              <p id="map-signup-preview" class="summary-line">Choose a rank to preview rewards.</p>
+              <button id="map-signup-start" type="button" disabled>Start Selected Bout</button>
+              <button id="map-signup-close" type="button" class="ghost">Close Desk</button>
+            </article>
+          </div>
+
+          <article class="map-log-wrap">
+            <h3>Interaction Log</h3>
+            <ul id="map-log" class="game-log"></ul>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <section id="character-status-modal" class="character-status-modal is-hidden" aria-label="Character Status">
+      <article class="character-status-card">
+        <h3 id="character-status-name">Character</h3>
+        <p id="character-status-subtitle" class="summary-line">Status</p>
+        <div id="character-status-body" class="character-status-body"></div>
+        <button id="character-status-close" type="button">Close</button>
+      </article>
+    </section>
+
+    <section id="database-modal" class="character-status-modal is-hidden" aria-label="Entity Database">
+      <article class="character-status-card">
+        <h3>Entity Database</h3>
+        <p id="db-page-status" class="summary-line">Database loading...</p>
+        <div class="database-grid">
+          <article class="db-panel">
+            <h3>Skills</h3>
+            <label>Existing Skill
+              <select id="db-skill-select"></select>
+            </label>
+            <label>Skill Id
+              <input id="db-skill-id" type="text" placeholder="example: guard_break" />
+            </label>
+            <label>Name
+              <input id="db-skill-name" type="text" />
+            </label>
+            <div class="db-grid-2">
+              <label>Power<input id="db-skill-power" type="number" step="0.01" /></label>
+              <label>Cost<input id="db-skill-cost" type="number" step="1" /></label>
+            </div>
+            <label>Icon URL
+              <input id="db-skill-icon" type="text" placeholder="images/skills/guard_break.png" />
+            </label>
+            <div class="mini-actions">
+              <button id="db-skill-new" type="button" class="ghost">New Skill</button>
+              <button id="db-skill-save" type="button">Save Skill</button>
+              <button id="db-skill-delete" type="button" class="ghost">Delete Skill</button>
+            </div>
+          </article>
+
+          <article class="db-panel">
+            <h3>Jobs</h3>
+            <label>Existing Job
+              <select id="db-job-select"></select>
+            </label>
+            <label>Job Id
+              <input id="db-job-id" type="text" placeholder="example: sentinel" />
+            </label>
+            <label>Label
+              <input id="db-job-label" type="text" />
+            </label>
+            <label>Linked Skill
+              <select id="db-job-skill-id"></select>
+            </label>
+            <div class="db-grid-2">
+              <label>HP Mod<input id="db-job-max-hp-mod" type="number" step="0.01" /></label>
+              <label>ATK Mod<input id="db-job-attack-mod" type="number" step="0.01" /></label>
+              <label>DEF Mod<input id="db-job-defense-mod" type="number" step="0.01" /></label>
+              <label>SPD Mod<input id="db-job-speed-mod" type="number" step="0.01" /></label>
+            </div>
+            <label>Icon URL
+              <input id="db-job-icon" type="text" placeholder="images/jobs/sentinel.png" />
+            </label>
+            <div class="mini-actions">
+              <button id="db-job-new" type="button" class="ghost">New Job</button>
+              <button id="db-job-save" type="button">Save Job</button>
+              <button id="db-job-delete" type="button" class="ghost">Delete Job</button>
+            </div>
+          </article>
+
+          <article class="db-panel">
+            <h3>Characters</h3>
+            <label>Existing Character
+              <select id="db-char-select"></select>
+            </label>
+            <label>Character Id
+              <input id="db-char-id" type="text" placeholder="example: recruit_nia" />
+            </label>
+            <label>Name
+              <input id="db-char-name" type="text" />
+            </label>
+            <label>Lore
+              <input id="db-char-lore" type="text" />
+            </label>
+            <label>Job
+              <select id="db-char-job-id"></select>
+            </label>
+            <label>Portrait URL
+              <input id="db-char-portrait" type="text" placeholder="images/chars/nia.png" />
+            </label>
+            <div class="db-grid-2">
+              <label>Base HP<input id="db-char-hp" type="number" step="1" /></label>
+              <label>Base ATK<input id="db-char-attack" type="number" step="1" /></label>
+              <label>Base DEF<input id="db-char-defense" type="number" step="1" /></label>
+              <label>Base SPD<input id="db-char-speed" type="number" step="1" /></label>
+            </div>
+            <div class="db-grid-2">
+              <label>Level<input id="db-char-level" type="number" min="1" step="1" /></label>
+              <label>Experience<input id="db-char-experience" type="number" min="0" step="1" /></label>
+            </div>
+            <label class="db-checkbox"><input id="db-char-main" type="checkbox" /> Set As Main Character</label>
+            <label class="db-checkbox"><input id="db-char-recruited" type="checkbox" /> Recruited</label>
+            <label class="db-checkbox"><input id="db-char-in-party" type="checkbox" /> In Party</label>
+            <div class="mini-actions">
+              <button id="db-char-new" type="button" class="ghost">New Character</button>
+              <button id="db-char-save" type="button">Save Character</button>
+              <button id="db-char-delete" type="button" class="ghost">Delete Character</button>
+            </div>
+          </article>
+        </div>
+        <button id="db-back-to-game" type="button">Close Database</button>
+      </article>
+    </section>
+
+    <div id="scene-transition" class="scene-transition" aria-hidden="true"></div>
+  </main>
+
+  <script src="src/core/namespace.js"></script>
+  <script src="src/systems/game/ColiseumData.js"></script>
+  <script src="src/systems/game/EntityDatabase.js"></script>
+  <script src="src/systems/game/ColiseumGameController.js"></script>
+  <script src="src/systems/map/WorldMapData.js"></script>
+  <script src="src/systems/map/WorldMapController.js"></script>
+  <script src="src/pages/DatabasePage.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
