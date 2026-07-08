@@ -80,6 +80,7 @@ class MapScene extends Phaser.Scene {
     // ── Window events ─────────────────────────────────────────────────────────
     this.evBattleState  = e => { this.ms.inBattle = Boolean(e.detail?.active); };
     this.evBattleResult = e => {
+      if (!this.scene.isActive()) return;
       const d = e.detail || {};
       if (d.source !== "map" && d.source !== "registrar") return;
       this.ms.encounterCooldown = 12;
@@ -90,6 +91,7 @@ class MapScene extends Phaser.Scene {
     };
     this.evCampaign     = e => { this.ms.campaignSnapshot = e.detail || {}; };
     this.evRecruit      = e => {
+      if (!this.scene.isActive()) return;
       const d = e.detail || {};
       if (d.ok) { this.ms.flags[d.memberId] = true; this.addLog(`${d.memberName} agreed to join.`); }
       this.saveMapProgress(); this.emitMapState();
@@ -762,7 +764,13 @@ class MapScene extends Phaser.Scene {
   // UI helpers
   // ──────────────────────────────────────────────────────────────────────────
   setPrompt(text) {
-    if (this.hudPromptText) this.hudPromptText.setText(text);
+    if (this.hudPromptText && this.hudPromptText.active) {
+      try {
+        this.hudPromptText.setText(text);
+      } catch (e) {
+        console.warn("Failed to set prompt text:", e);
+      }
+    }
     const el = document.getElementById("map-prompt");
     if (el) el.textContent = text;
   }
@@ -775,9 +783,9 @@ class MapScene extends Phaser.Scene {
 
   showDialog(speaker, text) {
     if (!this.dialogContainer) return;
-    this.dlgSpeaker.setText(speaker);
-    this.dlgBody.setText(text);
-    this.dlgContinue.setVisible(true);
+    if (this.dlgSpeaker && this.dlgSpeaker.active) this.dlgSpeaker.setText(speaker);
+    if (this.dlgBody && this.dlgBody.active) this.dlgBody.setText(text);
+    if (this.dlgContinue) this.dlgContinue.setVisible(true);
     this.dialogContainer.setVisible(true);
   }
 
@@ -786,9 +794,9 @@ class MapScene extends Phaser.Scene {
   }
 
   updateLocationText() {
-    if (this.hudSceneText)    this.hudSceneText.setText(`Scene: ${this.sceneLabel || "—"}`);
-    if (this.hudPhaseText)    this.hudPhaseText.setText(`Phase: ${this.ms.phase || "day"}`);
-    if (this.hudLocationText) this.hudLocationText.setText(`${this.playerTileX}, ${this.playerTileY}`);
+    if (this.hudSceneText && this.hudSceneText.active)       this.hudSceneText.setText(`Scene: ${this.sceneLabel || "—"}`);
+    if (this.hudPhaseText && this.hudPhaseText.active)       this.hudPhaseText.setText(`Phase: ${this.ms.phase || "day"}`);
+    if (this.hudLocationText && this.hudLocationText.active) this.hudLocationText.setText(`${this.playerTileX}, ${this.playerTileY}`);
     const sceneEl    = document.getElementById("map-scene");
     const phaseEl    = document.getElementById("map-phase");
     const locationEl = document.getElementById("map-location");

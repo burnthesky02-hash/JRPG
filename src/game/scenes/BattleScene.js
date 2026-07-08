@@ -14,6 +14,7 @@ class BattleScene extends Phaser.Scene {
     const campaign               = window.JRPG.systems.activeCampaign;
     const W = this.scale.width, H = this.scale.height;
 
+    this.sceneShuttingDown = false;
     this.autoBattle = false;
     this.pendingActorId = null;
     this.enemyTurnCooldown = 0;
@@ -275,7 +276,7 @@ class BattleScene extends Phaser.Scene {
   }
 
   checkBattleEnd() {
-    if (!this.battleState.active) return;
+    if (!this.battleState.active || this.sceneShuttingDown) return;
     const alliesAlive  = this.allies.some(a => a.hp > 0);
     const enemiesAlive = this.enemies.some(e => e.hp > 0);
     if (alliesAlive && enemiesAlive) return;
@@ -308,9 +309,6 @@ class BattleScene extends Phaser.Scene {
       levelUps:     rewards.levelUps.map(name => ({ name }))
     };
 
-    window.dispatchEvent(new CustomEvent("jrpg:battleResult",   { detail }));
-    window.dispatchEvent(new CustomEvent("jrpg:battleFinished", { detail }));
-
     // Reset auto-battle button
     const autoBtn = document.getElementById("auto-battle-toggle");
     if (autoBtn) {
@@ -319,13 +317,26 @@ class BattleScene extends Phaser.Scene {
       autoBtn.style.display = "none";
     }
 
-    // Flash and return to map after a short delay
+    // Return to map after a short delay
     this.time.delayedCall(2000, () => {
-      this.cameras.main.fade(400, 0, 0, 0, false, (_c, p) => {
-        if (p < 1) return;
+      if (this.sceneShuttingDown) {
+        console.log("Battle scene already shutting down, skipping transition");
+        return;
+      }
+      try {
+        console.log("Transitioning from Battle to Map...");
         window.dispatchEvent(new CustomEvent("jrpg:battleState", { detail: { active: false } }));
+        this.scene.stop();
         this.scene.start("MapScene", { sceneId: "district" });
-      });
+        
+        // Dispatch battle result events AFTER MapScene has started and initialized
+        this.time.delayedCall(50, () => {
+          window.dispatchEvent(new CustomEvent("jrpg:battleResult",   { detail }));
+          window.dispatchEvent(new CustomEvent("jrpg:battleFinished", { detail }));
+        });
+      } catch (e) {
+        console.error("Scene transition error:", e);
+      }
     });
   }
 
@@ -387,6 +398,7 @@ class BattleScene extends Phaser.Scene {
   // Cleanup
   // ──────────────────────────────────────────────────────────────────────────
   shutdown() {
+    this.sceneShuttingDown = true;
     if (this._autoBtnHandler) {
       const autoBtn = document.getElementById("auto-battle-toggle");
       if (autoBtn) autoBtn.removeEventListener("click", this._autoBtnHandler);
