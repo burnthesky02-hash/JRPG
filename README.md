@@ -10,7 +10,8 @@ This workspace uses plain HTML, CSS, and JavaScript loaded through ordered scrip
 - Coliseum campaign prototype with faction choice and rank progression
 - Active Time Battle loop (allies up to 4, enemies up to 6)
 - Job system with role-specific skills
-- Main character plus 3 recruitable mercenaries
+- Main character plus 5 recruitable mercenaries
+- Basic equipment bonuses, bond growth, and inventory tracking
 - Save and load for campaign state (localStorage)
 - In-memory roster storage
 - Female and male base body model support via image assets
@@ -58,6 +59,6 @@ Open `index.html` directly in your browser.
 
 ## Next Integration Targets
 - Nation-specific contract missions triggered by map interactions
-- Relationship and loyalty system affected by campaign choices
-- Inventory and equipment system
+- Relationship and loyalty growth from recruiting and battles
+- Inventory and gear rewards from map events and contracts
 - Story event system with branching consequences

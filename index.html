@@ -35,6 +35,13 @@
         </div>
       </section>
 
+      <section class="hud-section" data-hud-section="inventory">
+        <h3><button type="button" class="hud-toggle" data-hud-toggle="inventory" aria-expanded="true">Inventory</button></h3>
+        <div class="hud-body" data-hud-body="inventory">
+          <ul id="sidebar-inventory-list" class="hud-list"></ul>
+        </div>
+      </section>
+
       <section class="hud-section">
         <button id="open-database-page" type="button" class="hud-db-link">Open Entity Database</button>
       </section>
@@ -47,64 +54,52 @@
         <p class="subtitle">Explore the map, trigger encounters, then transition into ATB battles.</p>
       </header>
 
-      <section id="game-panel" class="panel game-panel is-hidden" aria-label="Active Time Battle Screen">
-        <article class="game-block battle-block">
-          <h3>Active Time Battle</h3>
-          <p id="game-battle-status" class="summary-line">No active match.</p>
-          <div id="game-command-row" class="command-row"><p class="hint">No active command.</p></div>
+      <section class="panel game-stage" aria-label="Game">
+        <div id="phaser-container"></div>
 
-          <div class="battle-grid">
-            <div>
-              <h4>Allies</h4>
-              <ul id="game-ally-board" class="game-list"></ul>
-            </div>
-            <div>
-              <h4>Enemies</h4>
-              <ul id="game-enemy-board" class="game-list"></ul>
-            </div>
-          </div>
-
-          <h4>Battle Log</h4>
-          <ul id="game-log" class="game-log"></ul>
-
-          <section id="battle-result-modal" class="battle-result-modal is-hidden" aria-label="Battle Result">
-            <h4>Battle Results</h4>
-            <p id="battle-result-summary" class="summary-line">Result pending.</p>
-            <ul id="battle-result-details" class="game-list"></ul>
-            <button id="battle-result-continue" type="button">Continue</button>
-          </section>
-        </article>
-      </section>
-
-      <section id="map-panel" class="panel map-panel" aria-label="Overworld Map Prototype">
-        <h2>Overworld District Map</h2>
-        <p class="hint">Traditional JRPG movement and interaction prototype. Use WASD or Arrow keys, then press E near NPCs or objects.</p>
-
-        <div class="map-layout">
-          <div class="map-canvas-wrap">
-            <canvas id="map-canvas" width="480" height="320" aria-label="World Map Canvas"></canvas>
-            <p class="summary-line">Scene: <span id="map-scene">Mercenary District</span> | Phase: <span id="map-phase">day</span></p>
-            <p id="map-location" class="summary-line">Position 0, 0</p>
-            <p id="map-prompt" class="hint">Move with WASD/Arrow keys. Press E or Interact near NPCs and objects.</p>
-            <button id="map-interact" type="button">Interact</button>
-
-            <article id="map-signup-panel" class="map-signup-panel is-hidden" aria-label="Battle Registration">
-              <h3>Battle Registrar</h3>
-              <p id="map-signup-status" class="hint">Select an unlocked rank to register for a fight.</p>
-              <div id="map-signup-ranks" class="map-signup-ranks"></div>
-              <p id="map-signup-preview" class="summary-line">Choose a rank to preview rewards.</p>
-              <button id="map-signup-start" type="button" disabled>Start Selected Bout</button>
-              <button id="map-signup-close" type="button" class="ghost">Close Desk</button>
-            </article>
-          </div>
-
-          <article class="map-log-wrap">
-            <h3>Interaction Log</h3>
-            <ul id="map-log" class="game-log"></ul>
+        <div class="map-overlays">
+          <article id="map-signup-panel" class="map-signup-panel is-hidden" aria-label="Battle Registration">
+            <h3>Battle Registrar</h3>
+            <p id="map-signup-status" class="hint">Select an unlocked rank to register for a fight.</p>
+            <div id="map-signup-ranks" class="map-signup-ranks"></div>
+            <p id="map-signup-preview" class="summary-line">Choose a rank to preview rewards.</p>
+            <button id="map-signup-start" type="button" disabled>Start Selected Bout</button>
+            <button id="map-signup-close" type="button" class="ghost">Close Desk</button>
           </article>
+
+          <div class="map-touch-controls">
+            <div class="touch-dpad" aria-label="Touch D-Pad" role="group">
+              <button class="dpad-btn dpad-up"       data-dpad="up"       type="button" aria-label="Move Up">&#9650;</button>
+              <button class="dpad-btn dpad-left"     data-dpad="left"     type="button" aria-label="Move Left">&#9664;</button>
+              <button class="dpad-btn dpad-interact" data-dpad="interact" type="button" aria-label="Interact">&#9876;</button>
+              <button class="dpad-btn dpad-right"    data-dpad="right"    type="button" aria-label="Move Right">&#9654;</button>
+              <button class="dpad-btn dpad-down"     data-dpad="down"     type="button" aria-label="Move Down">&#9660;</button>
+            </div>
+            <div class="map-btn-row">
+              <button id="map-interact"    type="button">Interact</button>
+              <button id="map-history-btn" type="button" class="ghost">History</button>
+              <button id="auto-battle-toggle" type="button" class="ghost" style="display:none">Auto Battle: OFF</button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
+
+    <!-- Hidden spans keep sidebar HUD IDs accessible -->
+    <span id="map-scene" style="display:none"></span>
+    <span id="map-phase" style="display:none"></span>
+    <span id="map-location" style="display:none"></span>
+    <span id="map-prompt"   style="display:none"></span>
+
+    <aside id="map-history-modal" class="map-history-modal" aria-label="Interaction History" role="dialog">
+      <div class="map-history-inner">
+        <div class="map-history-header">
+          <h3>Interaction History</h3>
+          <button id="map-history-close" type="button" class="ghost">✕</button>
+        </div>
+        <ul id="map-history-list" class="game-log map-history-list"></ul>
+      </div>
+    </aside>
 
     <section id="character-status-modal" class="character-status-modal is-hidden" aria-label="Character Status">
       <article class="character-status-card">
@@ -225,9 +220,13 @@
   <script src="src/core/namespace.js"></script>
   <script src="src/systems/game/ColiseumData.js"></script>
   <script src="src/systems/game/EntityDatabase.js"></script>
-  <script src="src/systems/game/ColiseumGameController.js"></script>
   <script src="src/systems/map/WorldMapData.js"></script>
-  <script src="src/systems/map/WorldMapController.js"></script>
+  <script src="src/game/CampaignService.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script src="src/game/scenes/BootScene.js"></script>
+  <script src="src/game/scenes/MapScene.js"></script>
+  <script src="src/game/scenes/BattleScene.js"></script>
+  <script src="src/game/main.js"></script>
   <script src="src/pages/DatabasePage.js"></script>
   <script src="src/app.js"></script>
 </body>

@@ -1,0 +1,6 @@
+Public tunnel command (no install needed if OpenSSH client is present):
+
+ssh -R 80:localhost:80 nokey@localhost.run
+
+After it connects, localhost.run prints a public URL.
+That URL will still require Apache Basic Auth.

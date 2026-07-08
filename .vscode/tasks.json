@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "check-public-tunnel",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$cloud = Get-Process cloudflared -ErrorAction SilentlyContinue; $caddy = Get-Process caddy -ErrorAction SilentlyContinue; if ($caddy) { Write-Output 'CADDY_RUNNING=YES' } else { Write-Output 'CADDY_RUNNING=NO' }; if ($cloud) { Write-Output 'CLOUDFLARED_RUNNING=YES'; Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'cloudflared' } | Select-Object Name, ProcessId, CommandLine | Format-List } else { Write-Output 'CLOUDFLARED_RUNNING=NO' }; try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/' -UseBasicParsing -TimeoutSec 8; Write-Output ('LOCAL_HTTP=' + [int]$r.StatusCode) } catch { if ($_.Exception.Response) { Write-Output ('LOCAL_HTTP=' + [int]$_.Exception.Response.StatusCode.value__) } else { Write-Output ('LOCAL_HTTP_ERROR=' + $_.Exception.Message) } }"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "check-public-tunnel-2",
+			"type": "shell",
+			"command": "$cloud = Get-Process cloudflared -ErrorAction SilentlyContinue; $caddy = Get-Process caddy -ErrorAction SilentlyContinue; if ($caddy) { Write-Output 'CADDY_RUNNING=YES' } else { Write-Output 'CADDY_RUNNING=NO' }; if ($cloud) { Write-Output 'CLOUDFLARED_RUNNING=YES'; Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*cloudflared*' } | Select-Object Name, ProcessId, CommandLine | Format-List } else { Write-Output 'CLOUDFLARED_RUNNING=NO' }; try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/' -UseBasicParsing -TimeoutSec 8; Write-Output ('LOCAL_HTTP=' + [int]$r.StatusCode) } catch { if ($_.Exception.Response) { Write-Output ('LOCAL_HTTP=' + [int]$_.Exception.Response.StatusCode.value__) } else { Write-Output ('LOCAL_HTTP_ERROR=' + $_.Exception.Message) } }",
+			"problemMatcher": []
+		}
+	]
+}

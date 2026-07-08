@@ -1,6 +1,6 @@
 (function registerWorldMapData(globalObject) {
-const TILE_SIZE = 32;
-const VIEWPORT_TILES = { width: 15, height: 10 };
+const TILE_SIZE = 40;
+const VIEWPORT_TILES = { width: 22, height: 12 };
 const MAP_SAVE_KEY = "jrpg_map_save_v1";
 
 const WORLD_SCENES = {
@@ -18,7 +18,7 @@ const WORLD_SCENES = {
       "#....#..#.........#....................#",
       "#....####.........###########..........#",
       "#......................................#",
-      "#..........s...............b....l......#",
+      "#..........s...............b....l...3..#",
       "#......................................#",
       "#####.#####.............##..##.........#",
       "#......................................#",
@@ -45,12 +45,50 @@ const WORLD_SCENES = {
       "#.........o........#",
       "#..................#",
       "#..................#",
-      "#.........1........#",
+      "#....4....1........#",
       "#..................#",
       "####################"
     ],
     spawns: {
       entry: { x: 9, y: 6, facing: "up" }
+    }
+  },
+  harbor_ward: {
+    id: "harbor_ward",
+    label: "Harbor Ward",
+    template: [
+      "######################",
+      "#....................#",
+      "#....h...........o...#",
+      "#....................#",
+      "#.........~~~~.......#",
+      "#.........~~~~.......#",
+      "#....................#",
+      "#...........3........#",
+      "#....................#",
+      "######################"
+    ],
+    spawns: {
+      entry: { x: 9, y: 6, facing: "up" }
+    }
+  },
+  barracks_interior: {
+    id: "barracks_interior",
+    label: "Barracks Interior",
+    template: [
+      "######################",
+      "#....................#",
+      "#....k...............#",
+      "#....................#",
+      "#.........d..........#",
+      "#....................#",
+      "#...........o........#",
+      "#...........4........#",
+      "#....................#",
+      "######################"
+    ],
+    spawns: {
+      entry: { x: 10, y: 6, facing: "up" }
     }
   },
   training_yard: {
@@ -92,6 +130,30 @@ const PORTAL_LINKS = {
     toSceneId: "district",
     toSpawnId: "from_guild",
     label: "Return to District"
+  },
+  "3_district": {
+    from: "district",
+    toSceneId: "harbor_ward",
+    toSpawnId: "entry",
+    label: "Enter Harbor Ward"
+  },
+  "3_harbor_ward": {
+    from: "harbor_ward",
+    toSceneId: "district",
+    toSpawnId: "from_harbor",
+    label: "Return to District"
+  },
+  "4_guild_hall": {
+    from: "guild_hall",
+    toSceneId: "barracks_interior",
+    toSpawnId: "entry",
+    label: "Enter Barracks Interior"
+  },
+  "4_barracks_interior": {
+    from: "barracks_interior",
+    toSceneId: "guild_hall",
+    toSpawnId: "entry",
+    label: "Return to Guild Hall"
   },
   "2_training_yard": {
     from: "training_yard",
@@ -179,6 +241,26 @@ const NPC_ARCHETYPES = {
       "Sign your squad in and pick an unlocked rank bracket.",
       "We run sanctioned bouts only. Select your tier and we will queue the match."
     ]
+  },
+  h: {
+    id: "harbor_clerk",
+    name: "Harbor Clerk",
+    schedule: ["day", "night"],
+    recruitId: "recruit_sera",
+    dialogues: [
+      "The docks pay in rumors, coins, and overtime.",
+      "Sera keeps the freight lanes moving even when the banners change."
+    ]
+  },
+  k: {
+    id: "barracks_veteran",
+    name: "Barracks Veteran",
+    schedule: ["day", "night"],
+    recruitId: "recruit_kael",
+    dialogues: [
+      "The barracks remember every supply shortfall.",
+      "Kael can hold a line long enough for a plan to become a victory."
+    ]
   }
 };
 
@@ -187,7 +269,7 @@ const OBJECT_ARCHETYPES = {
     id: "supply_cache",
     name: "Supply Cache",
     oneTime: true,
-    interactionText: "You found dried rations and 20 credits worth of salvage."
+    interactionText: "You found dried rations, a field kit, and 20 credits worth of salvage."
   },
   s: {
     id: "notice_board",
@@ -211,7 +293,7 @@ const ENCOUNTER_ZONES = [
     y1: 2,
     x2: 36,
     y2: 11,
-    chancePerStep: 0,
+    chancePerStep: 0.18,
     encounter: {
       label: "Market District Skirmish",
       rankOffset: 0,
@@ -226,7 +308,7 @@ const ENCOUNTER_ZONES = [
     y1: 13,
     x2: 36,
     y2: 18,
-    chancePerStep: 0,
+    chancePerStep: 0.12,
     encounter: {
       label: "Outer Wall Patrol Clash",
       rankOffset: 1,
@@ -240,9 +322,17 @@ const QUEST_LABELS = {
   captainWarningHeard: "Speak with the retired captain",
   observerContractSeen: "Read the district notice board",
   observerContractAccepted: "Secure observer contract clearance",
+  cindrel_contract_accepted: "Accept the Cindrel dispatch",
+  cindrel_contract_complete: "Report to the registrar and close the Cindrel dispatch",
+  valmere_contract_accepted: "Accept the Valmere salvage request",
+  valmere_contract_complete: "Recover the Valmere field cache",
+  orinth_contract_accepted: "Accept the Orinth cargo route",
+  orinth_contract_complete: "Secure the Orinth cargo cache",
   recruit_liora: "Recruit Liora in the district",
   recruit_mira: "Recruit Mira in the guild hall",
   recruit_dren: "Recruit Dren in the training yard",
+  recruit_sera: "Recruit Sera at the harbor ward",
+  recruit_kael: "Recruit Kael at the barracks",
   spoke_registrar: "Speak with Registrar Vonn for ranked battle sign-up"
 };
 

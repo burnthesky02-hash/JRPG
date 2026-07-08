@@ -59,6 +59,14 @@ class WorldMapController {
       prompt: root.querySelector("#map-prompt"),
       interactButton: root.querySelector("#map-interact"),
       interactionLog: root.querySelector("#map-log"),
+      historyButton: root.querySelector("#map-history-btn"),
+      historyModal: root.querySelector("#map-history-modal"),
+      historyClose: root.querySelector("#map-history-close"),
+      historyList: root.querySelector("#map-history-list"),
+      dialogBox: root.querySelector("#map-dialog-box"),
+      dialogSpeaker: root.querySelector("#map-dialog-speaker"),
+      dialogText: root.querySelector("#map-dialog-text"),
+      dialogClose: root.querySelector("#map-dialog-close"),
       signupPanel: root.querySelector("#map-signup-panel"),
       signupStatus: root.querySelector("#map-signup-status"),
       signupRanks: root.querySelector("#map-signup-ranks"),
@@ -372,6 +380,26 @@ class WorldMapController {
       this.tryInteract();
     });
 
+    if (this.elements.historyButton) {
+      this.elements.historyButton.addEventListener("click", () => {
+        this.elements.historyModal.classList.toggle("is-visible");
+      });
+    }
+
+    if (this.elements.historyClose) {
+      this.elements.historyClose.addEventListener("click", () => {
+        this.elements.historyModal.classList.remove("is-visible");
+      });
+    }
+
+    if (this.elements.dialogClose) {
+      this.elements.dialogClose.addEventListener("click", () => {
+        this.hideDialog();
+      });
+    }
+
+    this.bindTouchControls();
+
     if (this.elements.signupRanks) {
       this.elements.signupRanks.addEventListener("click", (event) => {
         const target = event.target;
@@ -577,6 +605,76 @@ class WorldMapController {
     );
   }
 
+  bindTouchControls() {
+    const dpadKeyMap = { up: "arrowup", down: "arrowdown", left: "arrowleft", right: "arrowright" };
+
+    const dpadButtons = this.root
+      ? Array.from(this.root.querySelectorAll(".dpad-btn[data-dpad]"))
+      : [];
+
+    dpadButtons.forEach((btn) => {
+      const direction = btn.getAttribute("data-dpad");
+
+      const press = (event) => {
+        event.preventDefault();
+        if (direction === "interact") {
+          this.tryInteract();
+          return;
+        }
+        const key = dpadKeyMap[direction];
+        if (key) {
+          btn.classList.add("is-pressed");
+          this.state.keysDown.add(key);
+        }
+      };
+
+      const release = () => {
+        const key = dpadKeyMap[direction];
+        if (key) {
+          btn.classList.remove("is-pressed");
+          this.state.keysDown.delete(key);
+        }
+      };
+
+      btn.addEventListener("pointerdown", press);
+      btn.addEventListener("pointerup", release);
+      btn.addEventListener("pointerleave", release);
+      btn.addEventListener("pointercancel", release);
+    });
+
+    if (!this.elements.canvas) {
+      return;
+    }
+
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+
+    this.elements.canvas.addEventListener("touchstart", (event) => {
+      const touch = event.touches[0];
+      swipeStartX = touch.clientX;
+      swipeStartY = touch.clientY;
+    }, { passive: true });
+
+    this.elements.canvas.addEventListener("touchend", (event) => {
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - swipeStartX;
+      const dy = touch.clientY - swipeStartY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      const threshold = 24;
+
+      if (absX < threshold && absY < threshold) {
+        return;
+      }
+
+      if (absX >= absY) {
+        this.attemptStep(dx > 0 ? 1 : -1, 0, dx > 0 ? "right" : "left");
+      } else {
+        this.attemptStep(0, dy > 0 ? 1 : -1, dy > 0 ? "down" : "up");
+      }
+    }, { passive: true });
+  }
+
   loop() {
     if (!this.state.running) {
       return;
@@ -651,10 +749,6 @@ class WorldMapController {
       return;
     }
 
-    if (this.state.currentSceneId === "district") {
-      return;
-    }
-
     if (this.state.encounterCooldownSteps > 0) {
       return;
     }
@@ -716,6 +810,8 @@ class WorldMapController {
       return;
     }
 
+    const campaign = this.getCampaignSnapshot();
+
     const target = this.getFacingTile();
     const npc = this.state.npcs.find(
       (entry) => entry.x === target.x && entry.y === target.y && this.isNpcActive(entry)
@@ -726,9 +822,38 @@ class WorldMapController {
       npc.dialogueIndex += 1;
       this.addLog(`${archetype.name}: ${line}`);
       this.setPrompt(`Talking to ${archetype.name}.`);
+      this.showDialog(archetype.name, line);
+
+      if (archetype.id === "supply_broker" && campaign.nationId === "orinth") {
+        this.markContractAccepted(
+          "orinth_contract_accepted",
+          "Orinth cargo route accepted from the broker.",
+          "Orinth contract accepted. Recover the cargo cache next."
+        );
+      }
+
+      if (archetype.id === "retired_captain" && campaign.nationId === "valmere") {
+        this.markContractAccepted(
+          "valmere_contract_accepted",
+          "Valmere salvage request accepted from the captain.",
+          "Valmere contract accepted. Recover the field cache next."
+        );
+      }
 
       if (archetype.registrar) {
         this.state.flags.spoke_registrar = true;
+
+        if (campaign.nationId === "cindrel") {
+          this.completeContract(
+            "cindrel_contract_accepted",
+            "cindrel_contract_complete",
+            "Cindrel dispatch returned to the registrar.",
+            "Cindrel contract completed.",
+            55,
+            "iron_longsword"
+          );
+        }
+
         this.showSignupPanel();
         this.emitMapState();
         this.saveMapProgress();
@@ -811,6 +936,18 @@ class WorldMapController {
       return "Observer contracts are live. Patrols are nervous, so stock up before heading out.";
     }
 
+    if (archetype.id === "supply_broker" && campaign.nationId === "orinth" && !this.state.flags.orinth_contract_accepted) {
+      return "Orinth needs clean routes and quiet hands. We can talk business after the greeting.";
+    }
+
+    if (archetype.id === "retired_captain" && campaign.nationId === "valmere" && !this.state.flags.valmere_contract_accepted) {
+      return "Valmere still remembers old routes. If you can recover one cache, I will vouch for you.";
+    }
+
+    if (archetype.id === "arena_scout" && campaign.nationId === "cindrel" && !this.state.flags.cindrel_contract_accepted) {
+      return "Cindrel wants order, but their paperwork still needs people who can move fast.";
+    }
+
     if (archetype.id === "guild_quartermaster" && campaign.nationId) {
       return "Your chosen banner is drawing attention. Keep your party equipped and discreet.";
     }
@@ -848,6 +985,49 @@ class WorldMapController {
     this.setPrompt(`Recruitment terms offered to ${archetype.name}.`);
   }
 
+  grantItem(itemId, quantity, message) {
+    const count = Math.max(1, Number(quantity || 1));
+    window.dispatchEvent(
+      new CustomEvent("jrpg:grantItem", {
+        detail: {
+          itemId,
+          quantity: count,
+          message: message || `Received ${itemId}.`
+        }
+      })
+    );
+  }
+
+  markContractAccepted(flagName, logText, promptText) {
+    if (this.state.flags[flagName]) {
+      return false;
+    }
+
+    this.state.flags[flagName] = true;
+    this.addLog(logText);
+    this.setPrompt(promptText);
+    this.emitMapState();
+    return true;
+  }
+
+  completeContract(acceptedFlag, completeFlag, logText, promptText, rewardCredits, rewardItemId) {
+    if (!this.state.flags[acceptedFlag] || this.state.flags[completeFlag]) {
+      return false;
+    }
+
+    this.state.flags[completeFlag] = true;
+    this.addLog(logText);
+    this.setPrompt(promptText);
+    if (Number.isFinite(rewardCredits) && rewardCredits > 0) {
+      window.dispatchEvent(new CustomEvent("jrpg:grantCredits", { detail: { amount: rewardCredits } }));
+    }
+    if (rewardItemId) {
+      this.grantItem(rewardItemId, 1, `Recovered ${rewardItemId.replace(/_/g, " ")}.`);
+    }
+    this.emitMapState();
+    return true;
+  }
+
   handleObjectInteraction(object, archetype) {
     const campaign = this.getCampaignSnapshot();
 
@@ -855,6 +1035,18 @@ class WorldMapController {
       object.opened = true;
       this.addLog(`${archetype.name}: ${archetype.interactionText}`);
       window.dispatchEvent(new CustomEvent("jrpg:grantCredits", { detail: { amount: 20 } }));
+      this.grantItem("field_kit", 1, "Received a field kit.");
+
+      if (campaign.nationId === "orinth") {
+        this.completeContract(
+          "orinth_contract_accepted",
+          "orinth_contract_complete",
+          "Orinth cargo routes are now secured.",
+          "Orinth contract completed.",
+          45,
+          "signal_charm"
+        );
+      }
       this.setPrompt(`Recovered supplies from ${archetype.name}.`);
       return;
     }
@@ -862,12 +1054,32 @@ class WorldMapController {
     if (archetype.id === "notice_board") {
       this.state.flags.observerContractSeen = true;
       this.addLog(`${archetype.name}: ${archetype.interactionText}`);
-      this.setPrompt("A new contract thread has been noted.");
+      if (campaign.nationId === "cindrel") {
+        this.markContractAccepted(
+          "cindrel_contract_accepted",
+          "Cindrel dispatch accepted from the board.",
+          "Cindrel contract accepted. Report to the registrar next."
+        );
+      } else {
+        this.setPrompt("A new contract thread has been noted.");
+      }
       this.emitMapState();
       return;
     }
 
     if (archetype.id === "training_gate") {
+      if (campaign.nationId === "valmere" && this.state.flags.valmere_contract_accepted && !this.state.flags.valmere_contract_complete) {
+        this.completeContract(
+          "valmere_contract_accepted",
+          "valmere_contract_complete",
+          "Valmere salvage request completed.",
+          "Valmere contract completed.",
+          60,
+          "duelist_blade"
+        );
+        return;
+      }
+
       if (campaign.rank < 3) {
         this.addLog(`${archetype.name}: Locked. Reach Coliseum rank 3 first.`);
         this.setPrompt("Gate remains closed.");
@@ -879,11 +1091,22 @@ class WorldMapController {
         this.setPrompt("Missing contract clearance.");
         return;
       }
-
       this.state.flags.observerContractAccepted = true;
       this.addLog(`${archetype.name}: Contract accepted. Military observer route unlocked.`);
       this.setPrompt("Observer contract accepted.");
       this.emitMapState();
+      return;
+    }
+
+    if (archetype.id === "battle_registrar" && campaign.nationId === "cindrel" && this.state.flags.cindrel_contract_accepted && !this.state.flags.cindrel_contract_complete) {
+      this.completeContract(
+        "cindrel_contract_accepted",
+        "cindrel_contract_complete",
+        "Cindrel dispatch returned to the registrar.",
+        "Cindrel contract completed.",
+        55,
+        "iron_longsword"
+      );
       return;
     }
 
@@ -898,7 +1121,26 @@ class WorldMapController {
 
   addLog(text) {
     const timestamp = new Date().toLocaleTimeString();
-    this.elements.interactionLog.innerHTML = `<li>[${timestamp}] ${text}</li>${this.elements.interactionLog.innerHTML}`;
+    const entry = `<li>[${timestamp}] ${text}</li>`;
+    if (this.elements.historyList) {
+      this.elements.historyList.innerHTML = entry + this.elements.historyList.innerHTML;
+    }
+  }
+
+  showDialog(speaker, text) {
+    if (!this.elements.dialogBox) {
+      return;
+    }
+    this.elements.dialogSpeaker.textContent = speaker;
+    this.elements.dialogText.textContent = text;
+    this.elements.dialogBox.classList.add("is-visible");
+  }
+
+  hideDialog() {
+    if (!this.elements.dialogBox) {
+      return;
+    }
+    this.elements.dialogBox.classList.remove("is-visible");
   }
 
   getCamera() {

@@ -38,12 +38,14 @@ function normalizeJob(raw, fallbackSkillId) {
 
 function normalizeCharacter(raw, fallbackJobId) {
   const id = String(raw.id || "").trim();
+  const equipment = raw.equipment && typeof raw.equipment === "object" ? raw.equipment : {};
   return {
     id,
     name: String(raw.name || id || "Unnamed").trim(),
     portraitUrl: String(raw.portraitUrl || "").trim(),
     lore: String(raw.lore || "").trim(),
     level: Math.max(1, Number(raw.level || 1)),
+    bond: Math.max(0, Number(raw.bond || 0)),
     experience: Math.max(0, Number(raw.experience || 0)),
     baseStats: {
       maxHp: Math.max(1, Number(raw.baseStats?.maxHp || 100)),
@@ -52,6 +54,11 @@ function normalizeCharacter(raw, fallbackJobId) {
       speed: Math.max(1, Number(raw.baseStats?.speed || 10))
     },
     jobId: String(raw.jobId || fallbackJobId || "vanguard").trim(),
+    equipment: {
+      weapon: String(equipment.weapon || "").trim(),
+      armor: String(equipment.armor || "").trim(),
+      accessory: String(equipment.accessory || "").trim()
+    },
     recruited: Boolean(raw.recruited),
     inParty: Boolean(raw.inParty),
     isMain: Boolean(raw.isMain)
@@ -312,12 +319,20 @@ class EntityDatabase {
 
   upsertCharacter(rawCharacter) {
     const fallbackJobId = this.state.jobs[0]?.id || "vanguard";
-    const character = normalizeCharacter(rawCharacter, fallbackJobId);
+    const existing = this.state.characters.find((entry) => entry.id === String(rawCharacter.id || "").trim()) || null;
+    const character = normalizeCharacter(
+      {
+        ...existing,
+        ...rawCharacter,
+        bond: rawCharacter.bond ?? existing?.bond,
+        equipment: rawCharacter.equipment ?? existing?.equipment
+      },
+      fallbackJobId
+    );
     if (!character.id) {
       return { ok: false, reason: "missing-id" };
     }
 
-    const existing = this.state.characters.find((entry) => entry.id === character.id);
     if (existing) {
       Object.assign(existing, character);
     } else {

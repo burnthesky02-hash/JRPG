@@ -13,8 +13,8 @@ function asNumber(value, fallback) {
 
 function initializeApp() {
   const root = document;
-  const mapPanel = document.getElementById("map-panel");
-  const gamePanel = document.getElementById("game-panel");
+  const mapPanel  = document.getElementById("map-panel");   // may be null with Phaser
+  const gamePanel = document.getElementById("game-panel");  // may be null with Phaser
   const sceneTransition = document.getElementById("scene-transition");
   const sidebar = {
     panel: document.getElementById("sidebar-panel"),
@@ -24,17 +24,16 @@ function initializeApp() {
     partyList: document.getElementById("sidebar-party-list"),
     reserveList: document.getElementById("sidebar-reserve-list"),
     questList: document.getElementById("sidebar-quest-list"),
+    inventoryList: document.getElementById("sidebar-inventory-list"),
     dbStatus: document.getElementById("db-status"),
     dbJobSelect: document.getElementById("db-job-select"),
     dbJobId: document.getElementById("db-job-id"),
     dbJobLabel: document.getElementById("db-job-label"),
+    dbJobSkillId: document.getElementById("db-job-skill-id"),
     dbJobMaxHpMod: document.getElementById("db-job-max-hp-mod"),
     dbJobAttackMod: document.getElementById("db-job-attack-mod"),
     dbJobDefenseMod: document.getElementById("db-job-defense-mod"),
     dbJobSpeedMod: document.getElementById("db-job-speed-mod"),
-    dbJobSkillName: document.getElementById("db-job-skill-name"),
-    dbJobSkillPower: document.getElementById("db-job-skill-power"),
-    dbJobSkillCost: document.getElementById("db-job-skill-cost"),
     dbJobSave: document.getElementById("db-job-save"),
     dbJobDelete: document.getElementById("db-job-delete"),
     dbCharSelect: document.getElementById("db-char-select"),
@@ -72,10 +71,13 @@ function initializeApp() {
     party: false,
     reserve: false,
     quests: false,
+    inventory: false,
     database: true
   };
 
-  if (!mapPanel || !gamePanel) {
+  const formatItemLabel = (itemId) => String(itemId || "").replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+
+  if (!mapPanel && !document.getElementById("phaser-container")) {
     return;
   }
 
@@ -164,6 +166,11 @@ function initializeApp() {
     const xpCurrent = Number(member.experience || 0);
     const xpNext = Number(member.nextLevelXp || 0);
     const xpPercent = xpNext > 0 ? Math.max(0, Math.min(100, Math.round((xpCurrent / xpNext) * 100))) : 0;
+    const equipment = member.equipment || {};
+    const equippedItems = Object.entries(equipment)
+      .filter(([, itemId]) => Boolean(itemId))
+      .map(([slot, itemId]) => `<p><strong>${slot}</strong> ${formatItemLabel(itemId)}</p>`)
+      .join("");
     const portraitMarkup = member.portraitUrl
       ? `<img class="character-status-portrait" src="${member.portraitUrl}" alt="${member.name} portrait">`
       : `<div class="character-status-portrait fallback" aria-label="${member.name} portrait placeholder">${getInitials(member.name)}</div>`;
@@ -177,8 +184,10 @@ function initializeApp() {
         <p><strong>ATK</strong> ${stats.attack || "-"}</p>
         <p><strong>DEF</strong> ${stats.defense || "-"}</p>
         <p><strong>SPD</strong> ${stats.speed || "-"}</p>
+        <p><strong>Bond</strong> ${member.bond || 0}</p>
         <p><strong>XP</strong> ${xpCurrent}/${xpNext || "-"} (${xpPercent}%)</p>
         <p><strong>Status</strong> ${member.inParty ? "In Party" : "Reserve"}</p>
+        ${equippedItems || "<p><strong>Equipment</strong> None</p>"}
       </div>
     </div>
     <p>${member.lore || "No lore recorded."}</p>`;
@@ -262,6 +271,23 @@ function initializeApp() {
             const done = doneFromFlags || doneFromRoster;
             return `<li>${done ? "[Done]" : "[Open]"} ${label}</li>`;
           })
+          .join("");
+      }
+    }
+
+    if (sidebar.inventoryList) {
+      const inventory = Array.isArray(campaign.inventory) ? campaign.inventory : [];
+      if (inventory.length === 0) {
+        sidebar.inventoryList.innerHTML = "<li>No stored supplies yet.</li>";
+      } else {
+        const counts = inventory.reduce((summary, itemId) => {
+          const key = String(itemId || "");
+          summary[key] = (summary[key] || 0) + 1;
+          return summary;
+        }, {});
+
+        sidebar.inventoryList.innerHTML = Object.entries(counts)
+          .map(([itemId, quantity]) => `<li><strong>${formatItemLabel(itemId)}</strong> x${quantity}</li>`)
           .join("");
       }
     }
@@ -377,6 +403,12 @@ function initializeApp() {
         .join("");
     }
 
+    if (sidebar.dbJobSkillId) {
+      sidebar.dbJobSkillId.innerHTML = snapshot.skills
+        .map((skill) => `<option value="${skill.id}">${skill.name} (${skill.id})</option>`)
+        .join("");
+    }
+
     if (sidebar.dbCharSelect) {
       sidebar.dbCharSelect.innerHTML = snapshot.characters
         .map((character) => `<option value="${character.id}">${character.name} (${character.id})</option>`)
@@ -395,13 +427,11 @@ function initializeApp() {
       if (sidebar.dbJobSelect) sidebar.dbJobSelect.value = selectedJob.id;
       if (sidebar.dbJobId) sidebar.dbJobId.value = selectedJob.id;
       if (sidebar.dbJobLabel) sidebar.dbJobLabel.value = selectedJob.label;
+      if (sidebar.dbJobSkillId) sidebar.dbJobSkillId.value = selectedJob.skillId || snapshot.skills[0]?.id || "";
       if (sidebar.dbJobMaxHpMod) sidebar.dbJobMaxHpMod.value = String(selectedJob.maxHpMod);
       if (sidebar.dbJobAttackMod) sidebar.dbJobAttackMod.value = String(selectedJob.attackMod);
       if (sidebar.dbJobDefenseMod) sidebar.dbJobDefenseMod.value = String(selectedJob.defenseMod);
       if (sidebar.dbJobSpeedMod) sidebar.dbJobSpeedMod.value = String(selectedJob.speedMod);
-      if (sidebar.dbJobSkillName) sidebar.dbJobSkillName.value = selectedJob.skill?.name || "";
-      if (sidebar.dbJobSkillPower) sidebar.dbJobSkillPower.value = String(selectedJob.skill?.power || 1.1);
-      if (sidebar.dbJobSkillCost) sidebar.dbJobSkillCost.value = String(selectedJob.skill?.cost || 8);
     }
 
     const selectedCharacter = getSelectedCharacterFromSnapshot();
@@ -529,12 +559,20 @@ function initializeApp() {
         attackMod: asNumber(sidebar.dbJobAttackMod?.value, 1),
         defenseMod: asNumber(sidebar.dbJobDefenseMod?.value, 1),
         speedMod: asNumber(sidebar.dbJobSpeedMod?.value, 1),
-        skill: {
-          id: `${jobId}_skill`,
-          name: String(sidebar.dbJobSkillName?.value || "Skill").trim(),
-          power: asNumber(sidebar.dbJobSkillPower?.value, 1.1),
-          cost: Math.max(0, Math.floor(asNumber(sidebar.dbJobSkillCost?.value, 8)))
-        }
+        skill: (() => {
+          const selectedSkillId = String(sidebar.dbJobSkillId?.value || "").trim();
+          const selectedSkill = dbUiState.snapshot?.skills?.find((skill) => skill.id === selectedSkillId)
+            || dbUiState.snapshot?.skills?.[0]
+            || null;
+
+          return {
+            id: selectedSkill?.id || `${jobId}_skill`,
+            name: selectedSkill?.name || "Skill",
+            power: Number(selectedSkill?.power || 1.1),
+            cost: Math.max(0, Math.floor(Number(selectedSkill?.cost || 8))),
+            iconUrl: String(selectedSkill?.iconUrl || "").trim()
+          };
+        })()
       });
 
       if (!result.ok) {
@@ -613,70 +651,31 @@ function initializeApp() {
   }
 
   if (ColiseumGameController) {
-    const game = new ColiseumGameController({ root });
-    game.initialize();
+    // ColiseumGameController is superseded by CampaignService + Phaser scenes.
   }
 
   if (WorldMapController) {
-    const worldMap = new WorldMapController({ root });
-    worldMap.initialize();
+    // WorldMapController is superseded by MapScene (Phaser).
   }
 
-  const setScene = (sceneName) => {
-    if (sceneName === "battle") {
-      mapPanel.classList.add("is-hidden");
-      gamePanel.classList.remove("is-hidden");
-      return;
-    }
-
-    gamePanel.classList.add("is-hidden");
-    mapPanel.classList.remove("is-hidden");
-  };
-
-  const transitionToScene = (sceneName) => {
-    if (!sceneTransition) {
-      setScene(sceneName);
-      return;
-    }
-
-    sceneTransition.classList.remove("active");
-    // Restart animation reliably on repeated transitions.
-    void sceneTransition.offsetWidth;
-    sceneTransition.classList.add("active");
-
-    window.setTimeout(() => {
-      setScene(sceneName);
-    }, 190);
-
-    window.setTimeout(() => {
-      sceneTransition.classList.remove("active");
-    }, 470);
-  };
-
-  setScene("map");
-
-  window.addEventListener("jrpg:battleState", (event) => {
-    const detail = event.detail || {};
-    if (detail.active) {
-      battleGate.pending = false;
-      battleGate.detail = null;
-      hideBattleResult();
-      transitionToScene("battle");
-      return;
-    }
-
-    if (battleGate.pending) {
-      return;
-    }
-
-    transitionToScene("map");
-  });
+  // Initialise campaign service
+  const { CampaignService } = window.JRPG.systems.campaign;
+  const campaignService = new CampaignService();
+  campaignService.initialize();
+  window.JRPG.systems.activeCampaign = campaignService;
 
   window.addEventListener("jrpg:battleFinished", (event) => {
     const detail = event.detail || {};
     battleGate.pending = true;
-    battleGate.detail = detail;
+    battleGate.detail  = detail;
     showBattleResult(detail);
+  });
+
+  window.addEventListener("jrpg:battleState", (event) => {
+    const detail = event.detail || {};
+    if (!detail.active && battleGate.pending) {
+      // battle ended — result shown by BattleScene; hide result overlay if still open
+    }
   });
 
   window.addEventListener("jrpg:campaignState", (event) => {
@@ -686,6 +685,7 @@ function initializeApp() {
       nationLabel: detail.nationLabel || "Unaligned",
       rank: Number(detail.rank || 1),
       credits: Number(detail.credits || 0),
+      inventory: Array.isArray(detail.inventory) ? detail.inventory : [],
       roster: Array.isArray(detail.roster) ? detail.roster : []
     };
     renderHud();

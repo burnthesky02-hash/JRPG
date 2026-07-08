@@ -1,5 +1,5 @@
 (function registerColiseumGameController(globalObject) {
-const { JOBS, MAIN_CHARACTER, NATIONS, RECRUITABLES, SAVE_KEY } = globalObject.JRPG.systems.game.data;
+const { EQUIPMENT, JOBS, MAIN_CHARACTER, NATIONS, RECRUITABLES, SAVE_KEY } = globalObject.JRPG.systems.game.data;
 const ENEMY_GLOBAL_TURN_COOLDOWN = 0.08;
 const ATB_WAIT_MODE = true;
 const MAX_LEVEL = 99;
@@ -43,11 +43,31 @@ function computeCombatStats(character) {
     defenseMod: 1,
     speedMod: 1
   };
+
+  const equipmentIds = character.equipment && typeof character.equipment === "object"
+    ? Object.values(character.equipment).filter(Boolean)
+    : [];
+  const equipmentBonus = equipmentIds.reduce(
+    (totals, equipmentId) => {
+      const item = EQUIPMENT[equipmentId];
+      if (!item || !item.statMods) {
+        return totals;
+      }
+
+      totals.maxHp += Number(item.statMods.maxHp || 0);
+      totals.attack += Number(item.statMods.attack || 0);
+      totals.defense += Number(item.statMods.defense || 0);
+      totals.speed += Number(item.statMods.speed || 0);
+      return totals;
+    },
+    { maxHp: 0, attack: 0, defense: 0, speed: 0 }
+  );
+
   return {
-    maxHp: Math.floor(character.baseStats.maxHp * job.maxHpMod),
-    attack: Math.floor(character.baseStats.attack * job.attackMod),
-    defense: Math.floor(character.baseStats.defense * job.defenseMod),
-    speed: Math.floor(character.baseStats.speed * job.speedMod)
+    maxHp: Math.floor(character.baseStats.maxHp * job.maxHpMod + equipmentBonus.maxHp),
+    attack: Math.floor(character.baseStats.attack * job.attackMod + equipmentBonus.attack),
+    defense: Math.floor(character.baseStats.defense * job.defenseMod + equipmentBonus.defense),
+    speed: Math.floor(character.baseStats.speed * job.speedMod + equipmentBonus.speed)
   };
 }
 
@@ -93,11 +113,13 @@ class ColiseumGameController {
       nationId: null,
       rank: 1,
       credits: 0,
+      inventory: [],
       roster: [],
       battle: null,
       lastTickTime: 0,
       battleContext: null,
-      enemyTurnCooldown: 0
+      enemyTurnCooldown: 0,
+      autoBattleEnabled: false
     };
 
     this.elements = {
@@ -117,7 +139,8 @@ class ColiseumGameController {
       battleStatus: root.querySelector("#game-battle-status"),
       allyBoard: root.querySelector("#game-ally-board"),
       enemyBoard: root.querySelector("#game-enemy-board"),
-      log: root.querySelector("#game-log")
+      log: root.querySelector("#game-log"),
+      autoBattleToggle: root.querySelector("#auto-battle-toggle")
     };
 
     this.battleLoopId = null;
@@ -152,6 +175,10 @@ class ColiseumGameController {
         ...base.baseStats,
         ...(existing.baseStats || {})
       };
+      const equipment = {
+        ...(base.equipment || {}),
+        ...(existing.equipment || {})
+      };
 
       const level = Math.max(1, Number(existing.level || base.level || 1));
       const experience = Math.max(0, Number(existing.experience || 0));
@@ -161,9 +188,11 @@ class ColiseumGameController {
         ...existing,
         level,
         experience,
+        bond: Math.max(0, Number(existing.bond ?? base.bond ?? 0)),
         recruited: Boolean(existing.recruited ?? base.recruited),
         inParty: Boolean(existing.inParty ?? base.inParty),
-        baseStats
+        baseStats,
+        equipment
       };
     });
 
@@ -218,6 +247,7 @@ class ColiseumGameController {
       }
 
       member.experience = Math.max(0, Number(member.experience || 0)) + amount;
+      member.bond = Math.max(0, Number(member.bond || 0)) + 1;
       while (member.level < MAX_LEVEL && member.experience >= getXpToNextLevel(member.level)) {
         member.experience -= getXpToNextLevel(member.level);
         member.level += 1;
@@ -242,7 +272,9 @@ class ColiseumGameController {
       recruited: Boolean(member.recruited),
       inParty: Boolean(member.inParty),
       level: member.level,
+      bond: Number(member.bond || 0),
       stats: computeCombatStats(member),
+      equipment: { ...(member.equipment || {}) },
       experience: Number(member.experience || 0),
       nextLevelXp: getXpToNextLevel(member.level)
     }));
@@ -254,6 +286,7 @@ class ColiseumGameController {
           nationLabel: this.state.nationId ? NATIONS[this.state.nationId].label : "Unaligned",
           rank: this.state.rank,
           credits: this.state.credits,
+          inventory: this.state.inventory.slice(),
           roster: rosterSummary
         }
       })
@@ -311,6 +344,24 @@ class ColiseumGameController {
       this.recruitMember(detail.memberId, true);
     };
 
+    this.onExternalGrantItem = (event) => {
+      const detail = event.detail || {};
+      const itemId = String(detail.itemId || "").trim();
+      const quantity = Math.max(1, Math.floor(Number(detail.quantity || 1)));
+
+      if (!itemId) {
+        return;
+      }
+
+      for (let index = 0; index < quantity; index += 1) {
+        this.state.inventory.push(itemId);
+      }
+
+      this.renderAll();
+      this.broadcastCampaignState();
+      this.log(detail.message || `Received ${itemId}.`);
+    };
+
     this.onExternalPartyAddRequest = (event) => {
       const detail = event.detail || {};
       this.addMemberToParty(detail.memberId);
@@ -323,6 +374,7 @@ class ColiseumGameController {
 
     window.addEventListener("jrpg:startBattle", this.onExternalBattleRequest);
     window.addEventListener("jrpg:grantCredits", this.onExternalGrantCredits);
+    window.addEventListener("jrpg:grantItem", this.onExternalGrantItem);
     window.addEventListener("jrpg:recruitRequest", this.onExternalRecruitRequest);
     window.addEventListener("jrpg:partyAddRequest", this.onExternalPartyAddRequest);
     window.addEventListener("jrpg:partyRemoveRequest", this.onExternalPartyRemoveRequest);
@@ -335,6 +387,15 @@ class ColiseumGameController {
     };
 
     window.addEventListener("jrpg:entityDbUpdated", this.onEntityDbUpdated);
+
+    if (this.elements.autoBattleToggle) {
+      this.elements.autoBattleToggle.addEventListener("click", () => {
+        this.state.autoBattleEnabled = !this.state.autoBattleEnabled;
+        const btn = this.elements.autoBattleToggle;
+        btn.textContent = `Auto Battle: ${this.state.autoBattleEnabled ? "ON" : "OFF"}`;
+        btn.classList.toggle("is-active", this.state.autoBattleEnabled);
+      });
+    }
   }
 
   recruitMember(memberId, autoAddToParty) {
@@ -358,6 +419,7 @@ class ColiseumGameController {
     }
 
     member.recruited = true;
+    member.bond = Math.max(0, Number(member.bond || 0)) + 2;
     if (autoAddToParty && this.getPartyMembers().length < 4) {
       member.inParty = true;
     }
@@ -502,6 +564,7 @@ class ColiseumGameController {
               )
               .join("")}
           </select><br>
+          Bond ${member.bond || 0}<br>
           Lv ${member.level} XP ${member.experience || 0}/${getXpToNextLevel(member.level)}<br>
           HP ${stats.maxHp} | ATK ${stats.attack} | DEF ${stats.defense} | SPD ${stats.speed}
         </li>`;
@@ -533,7 +596,7 @@ class ColiseumGameController {
         (member) => {
           const job = JOBS[member.jobId] || { label: member.jobId, iconUrl: "" };
           const icon = job.iconUrl ? `<img class="job-inline-icon" src="${job.iconUrl}" alt="${job.label}" />` : "";
-          return `<li>${icon}<strong>${member.name}</strong> - ${job.label}</li>`;
+          return `<li>${icon}<strong>${member.name}</strong> - ${job.label}<br>Bond ${member.bond || 0}</li>`;
         }
       )
       .join("");
@@ -671,11 +734,17 @@ class ColiseumGameController {
       const readyAlly = battle.allies.find((ally) => ally.hp > 0 && ally.atb >= 100);
       if (readyAlly) {
         this.pendingActorId = readyAlly.id;
-        this.renderCommandRow();
-          this.checkBattleEnd();
-          return;
+        if (this.state.autoBattleEnabled) {
+          const job = JOBS[readyAlly.jobId] || Object.values(JOBS)[0];
+          const useSkill = readyAlly.mp >= job.skill.cost;
+          this.allyTakeTurn(useSkill ? "skill" : "attack");
+        } else {
+          this.renderCommandRow();
         }
+        this.checkBattleEnd();
+        return;
       }
+    }
 
       if (!this.pendingActorId && this.state.enemyTurnCooldown <= 0) {
         const readyEnemy = battle.enemies.find((enemy) => enemy.hp > 0 && enemy.atb >= 100);
@@ -944,6 +1013,7 @@ class ColiseumGameController {
       nationId: this.state.nationId,
       rank: this.state.rank,
       credits: this.state.credits,
+      inventory: this.state.inventory,
       roster: this.state.roster
     };
 
@@ -964,6 +1034,7 @@ class ColiseumGameController {
       this.state.nationId = parsed.nationId || null;
       this.state.rank = parsed.rank || 1;
       this.state.credits = parsed.credits || 0;
+      this.state.inventory = Array.isArray(parsed.inventory) ? parsed.inventory.slice() : [];
       this.state.roster = this.normalizeRoster(parsed.roster);
     } catch {
       this.log("Save data was corrupted and could not be read.");

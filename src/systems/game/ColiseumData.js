@@ -66,6 +66,54 @@ const JOBS = {
   }
 };
 
+const EQUIPMENT = {
+  iron_longsword: {
+    id: "iron_longsword",
+    label: "Iron Longsword",
+    slot: "weapon",
+    statMods: {
+      attack: 4,
+      speed: 1
+    }
+  },
+  field_shield: {
+    id: "field_shield",
+    label: "Field Shield",
+    slot: "armor",
+    statMods: {
+      maxHp: 14,
+      defense: 4
+    }
+  },
+  signal_charm: {
+    id: "signal_charm",
+    label: "Signal Charm",
+    slot: "accessory",
+    statMods: {
+      attack: 2,
+      speed: 3
+    }
+  },
+  focus_rod: {
+    id: "focus_rod",
+    label: "Focus Rod",
+    slot: "weapon",
+    statMods: {
+      attack: 5,
+      speed: 1
+    }
+  },
+  duelist_blade: {
+    id: "duelist_blade",
+    label: "Duelist Blade",
+    slot: "weapon",
+    statMods: {
+      attack: 3,
+      speed: 4
+    }
+  }
+};
+
 const NATIONS = {
   cindrel: {
     id: "cindrel",
@@ -93,6 +141,7 @@ const MAIN_CHARACTER = {
   portraitUrl: "",
   lore: "Independent pit fighter with no fixed banner.",
   level: 1,
+  bond: 1,
   baseStats: {
     maxHp: 125,
     attack: 23,
@@ -100,6 +149,11 @@ const MAIN_CHARACTER = {
     speed: 14
   },
   jobId: "vanguard",
+  equipment: {
+    weapon: "iron_longsword",
+    armor: "field_shield",
+    accessory: "signal_charm"
+  },
   recruited: true,
   inParty: true
 };
@@ -111,8 +165,14 @@ const RECRUITABLES = [
     portraitUrl: "",
     lore: "Scout archer who studies officer formations.",
     level: 1,
+    bond: 0,
     baseStats: { maxHp: 102, attack: 20, defense: 11, speed: 18 },
     jobId: "ranger",
+    equipment: {
+      weapon: "duelist_blade",
+      armor: "",
+      accessory: "signal_charm"
+    },
     recruited: false,
     inParty: false
   },
@@ -122,8 +182,14 @@ const RECRUITABLES = [
     portraitUrl: "",
     lore: "Former siege engineer turned arena brawler.",
     level: 1,
+    bond: 0,
     baseStats: { maxHp: 118, attack: 21, defense: 15, speed: 12 },
     jobId: "tactician",
+    equipment: {
+      weapon: "field_shield",
+      armor: "iron_longsword",
+      accessory: ""
+    },
     recruited: false,
     inParty: false
   },
@@ -133,8 +199,48 @@ const RECRUITABLES = [
     portraitUrl: "",
     lore: "Fire-channeling scholar chased from a war college.",
     level: 1,
+    bond: 0,
     baseStats: { maxHp: 94, attack: 24, defense: 10, speed: 15 },
     jobId: "arcanist",
+    equipment: {
+      weapon: "focus_rod",
+      armor: "",
+      accessory: "signal_charm"
+    },
+    recruited: false,
+    inParty: false
+  },
+  {
+    id: "recruit_sera",
+    name: "Sera",
+    portraitUrl: "",
+    lore: "Dock runner who maps supply lanes faster than clerks.",
+    level: 1,
+    bond: 0,
+    baseStats: { maxHp: 98, attack: 18, defense: 12, speed: 19 },
+    jobId: "ranger",
+    equipment: {
+      weapon: "duelist_blade",
+      armor: "",
+      accessory: "signal_charm"
+    },
+    recruited: false,
+    inParty: false
+  },
+  {
+    id: "recruit_kael",
+    name: "Kael",
+    portraitUrl: "",
+    lore: "Barracks veteran who never stopped drilling after the war.",
+    level: 1,
+    bond: 0,
+    baseStats: { maxHp: 130, attack: 22, defense: 16, speed: 11 },
+    jobId: "vanguard",
+    equipment: {
+      weapon: "iron_longsword",
+      armor: "field_shield",
+      accessory: ""
+    },
     recruited: false,
     inParty: false
   }
@@ -144,6 +250,7 @@ const SAVE_KEY = "jrpg_coliseum_save_v1";
 
 globalObject.JRPG.systems.game.data = {
   JOBS,
+  EQUIPMENT,
   NATIONS,
   MAIN_CHARACTER,
   RECRUITABLES,

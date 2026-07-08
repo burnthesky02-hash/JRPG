@@ -1,0 +1,15 @@
+Stable hosting setup
+
+One-click public launcher:
+.server\start-public.bat
+
+1) Local private server only
+powershell -ExecutionPolicy Bypass -File .server\start-stable.ps1 -Username jrpg -Password "YourStrongPassword"
+
+2) Local private server + public URL
+powershell -ExecutionPolicy Bypass -File .server\start-stable.ps1 -Username jrpg -Password "YourStrongPassword" -Public
+
+The public URL will be printed by cloudflared.
+
+Stop all services:
+powershell -ExecutionPolicy Bypass -File .server\stop-stable.ps1
